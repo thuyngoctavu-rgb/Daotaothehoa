@@ -156,7 +156,7 @@
   .certificate{display:none; margin:10px 4px 4px;}
   .certificate.show{display:block;}
   .cert-inner{
-    position:relative; border:3px double var(--pink); border-radius:18px; padding:40px 36px 44px;
+    position:relative; border:3px double var(--pink); border-radius:18px; padding:40px 36px 84px;
     text-align:center; overflow:hidden;
     background:
       radial-gradient(circle at 12% 8%, rgba(232,145,156,.10) 0%, transparent 40%),
@@ -189,13 +189,20 @@
   .cert-meta-label{display:block; font-size:10.5px; letter-spacing:.5px; color:var(--ink-faint); margin-bottom:4px; text-transform:uppercase;}
   .cert-meta-value{display:block; font-size:13.5px; font-weight:600; color:var(--ink);}
   .cert-seal{
-    position:absolute; bottom:-8px; right:26px; width:78px; height:78px; border-radius:50%;
+    position:absolute; bottom:10px; left:50%; width:70px; height:70px; border-radius:50%;
     background:var(--pink); display:flex; align-items:center; justify-content:center; flex-direction:column;
-    transform:rotate(-12deg); box-shadow:0 4px 10px rgba(201,98,118,.35); border:3px solid #fff;
+    transform:translateX(-50%) rotate(-8deg); box-shadow:0 4px 10px rgba(201,98,118,.35); border:3px solid #fff;
   }
-  .cert-seal img{width:36px; height:36px; margin-bottom:1px;}
+  .cert-seal img{width:32px; height:32px; margin-bottom:1px;}
   .cert-seal span{font-size:7px; font-weight:800; color:#fff; letter-spacing:.5px; line-height:1.1;}
-  .cert-actions{display:flex; gap:10px; justify-content:center; margin-top:22px;}
+  .cert-actions{display:flex; gap:10px; justify-content:center; margin-top:22px; flex-wrap:wrap;}
+  .cert-save-hint{text-align:center; font-size:11.5px; color:var(--ink-faint); margin:10px 0 0;}
+  @media (max-width:480px){
+    .cert-meta{flex-direction:column; gap:14px;}
+    .cert-meta > div{padding:0;}
+    .cert-meta > div + div{border-left:none; border-top:1px solid var(--line-strong); padding-top:14px;}
+    .cert-inner{padding:34px 22px 84px;}
+  }
 
   @media print{
     body *{visibility:hidden;}
@@ -428,9 +435,11 @@
               </div>
             </div>
             <div class="cert-actions no-print">
-              <button class="next" id="printCertBtn">In / Lưu chứng nhận (PDF)</button>
+              <button class="next" id="saveCertImgBtn">📷 Lưu ảnh chứng nhận</button>
+              <button class="next ghost" id="printCertBtn">In (PDF)</button>
               <button class="next ghost" id="backBtn">Quay lại kết quả</button>
             </div>
+            <p class="cert-save-hint no-print">Ảnh chứng nhận sẽ tự động tải về máy dạng file PNG.</p>
           </div>
         </div>
       </div>
@@ -440,6 +449,7 @@
   </main>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
   const progressEl = document.getElementById('progress');
   window.addEventListener('scroll', () => {
@@ -575,12 +585,14 @@
     const passed = score >= PASS_SCORE;
     certReady.style.display = passed ? 'block' : 'none';
     retryHint.style.display = passed ? 'none' : 'block';
-  }
 
-  document.getElementById('showCertBtn').addEventListener('click', () => {
+    // Ghi sẵn thông tin vào chứng nhận ngay khi có kết quả, tránh lệch điểm về sau
     document.getElementById('certNameOut').textContent = learnerName;
     document.getElementById('certScoreOut').textContent = score + '/' + quizData.length;
     document.getElementById('certDateOut').textContent = new Date().toLocaleDateString('vi-VN', { day:'2-digit', month:'2-digit', year:'numeric' });
+  }
+
+  document.getElementById('showCertBtn').addEventListener('click', () => {
     resultBox.classList.remove('show');
     certificate.classList.add('show');
   });
@@ -589,6 +601,27 @@
     resultBox.classList.add('show');
   });
   document.getElementById('printCertBtn').addEventListener('click', () => window.print());
+
+  document.getElementById('saveCertImgBtn').addEventListener('click', () => {
+    const btn = document.getElementById('saveCertImgBtn');
+    const certEl = document.querySelector('#certificate .cert-inner');
+    const originalText = btn.textContent;
+    btn.textContent = 'Đang chụp...';
+    btn.disabled = true;
+    html2canvas(certEl, { scale: 2, backgroundColor: '#ffffff', useCORS: true }).then(canvas => {
+      const link = document.createElement('a');
+      const safeName = (learnerName || 'chung-nhan').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9]+/g, '-');
+      link.download = 'Chung-nhan-CSKH-' + safeName + '.png';
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      btn.textContent = originalText;
+      btn.disabled = false;
+    }).catch(() => {
+      btn.textContent = originalText;
+      btn.disabled = false;
+      alert('Không thể lưu ảnh tự động, chị dùng nút "In (PDF)" để lưu thay thế nhé.');
+    });
+  });
 
   document.getElementById('retryBtn').addEventListener('click', () => {
     current = 0; score = 0; answers.fill(null);
